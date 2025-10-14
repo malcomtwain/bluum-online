@@ -115,27 +115,31 @@ export default function GeneratedSlideshowsPage() {
   useEffect(() => {
     const loadSlideshowImages = async () => {
       const newImages: {[key: string]: string[]} = {};
-      
+
       // Charger seulement les slideshows de la page actuelle
       const currentSlideshows = slideshows.slice((currentPage - 1) * slideshowsPerPage, currentPage * slideshowsPerPage);
-      
+
       for (const slideshow of currentSlideshows) {
-        // Extract slideshow folder name from file_url
+        // Extract slideshow folder name from file_url (Supabase Storage URL)
         const match = slideshow.file_url.match(/slideshow-\d+/);
         if (match) {
           const slideshowFolder = match[0];
-          // Generate image URLs based on the pattern
+          // Generate image URLs from Supabase Storage
           const imageUrls: string[] = [];
           const imageCount = slideshow.image_count || 5;
-          
+
+          // Get base URL from file_url (everything before the filename)
+          const baseUrl = slideshow.file_url.substring(0, slideshow.file_url.lastIndexOf('/'));
+
           for (let i = 1; i <= imageCount; i++) {
-            imageUrls.push(`/generated-slideshows/${slideshowFolder}/part_${i}.png`);
+            // Use Supabase Storage URL instead of local path
+            imageUrls.push(`${baseUrl}/part_${i}.png`);
           }
-          
+
           newImages[slideshow.id] = imageUrls;
         }
       }
-      
+
       setSlideshowImages(newImages);
     };
 
@@ -162,7 +166,8 @@ export default function GeneratedSlideshowsPage() {
       toast.success('Slideshow downloaded!');
     } catch (error) {
       console.error('Error downloading slideshow:', error);
-      toast.error(`Failed to download slideshow: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Failed to download slideshow: ${errorMessage}`);
     } finally {
       setDownloadingSlideshow(null);
     }
