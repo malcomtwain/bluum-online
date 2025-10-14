@@ -1921,10 +1921,12 @@ export default function SlideshowPage() {
               <div className="w-full mb-4">
                 <div className="flex gap-3 justify-center flex-wrap">
                   {generatedSlideshows.slice(0, 5).map((slideshowId, index) => {
-                    // Utiliser les vraies images originales qui ont été envoyées à l'API
+                    // Utiliser les vraies images générées par l'API
                     const images = generatedSlideshowsImages[slideshowId] || [];
                     const currentImageIndex = slideshowImageIndexes[slideshowId] || 0;
-                    
+
+                    console.log(`Modal preview - Slideshow ${slideshowId}:`, images);
+
                     return (
                       <div key={slideshowId} className="relative">
                         <div className="aspect-[9/16] bg-black rounded-lg overflow-hidden w-[120px]">
