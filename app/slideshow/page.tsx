@@ -14,6 +14,7 @@ import { ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 import { useRouter } from "next/navigation";
 import { downloadSlideshowsAsZip } from "@/utils/slideshowZipDownloader";
+import { createCollection, moveSlideshowToCollection } from "@/lib/media-collections";
 
 export default function SlideshowPage() {
   const { user } = useAuth();
@@ -686,6 +687,11 @@ export default function SlideshowPage() {
             allGeneratedImages[slideshowId] = result.images || validImages;
             console.log(`Stored generated images for slideshow ${slideshowId}:`, result.images);
 
+            // Store database ID for collection assignment
+            if (result.databaseId) {
+              allGeneratedImages[`${slideshowId}_dbId`] = result.databaseId;
+            }
+
             // Store hook metadata if needed for display
             if (result.hookText) {
               console.log('Slideshow created with hook:', result.hookText, 'Style:', result.hookStyle);
@@ -706,7 +712,57 @@ export default function SlideshowPage() {
         setGeneratedSlideshows(generatedUrls);
         setGeneratedSlideshowsImages(allGeneratedImages);
         console.log('Final allGeneratedImages:', allGeneratedImages);
-        
+
+        // Créer automatiquement une collection pour ce batch de génération
+        if (user?.id && generatedUrls.length > 1) {
+          try {
+            const now = new Date();
+            const collectionName = `Generated ${now.toLocaleDateString('en-US', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric'
+            })} - ${now.toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false
+            })}`;
+
+            console.log('Creating auto-collection:', collectionName);
+
+            const newCollection = await createCollection(
+              user.id,
+              collectionName,
+              `Batch of ${generatedUrls.length} slideshows`,
+              undefined, // no parent
+              'slideshows',
+              '#8B5CF6', // Purple color for auto-generated collections
+              'clock' // Clock icon to indicate it's time-based
+            );
+
+            if (newCollection) {
+              console.log('Auto-collection created:', newCollection.id);
+
+              // Move all generated slideshows to this collection
+              const movePromises = generatedUrls.map(slideshowId => {
+                const dbId = allGeneratedImages[`${slideshowId}_dbId`];
+                if (dbId) {
+                  console.log(`Moving slideshow ${slideshowId} (DB ID: ${dbId}) to collection ${newCollection.id}`);
+                  return moveSlideshowToCollection(dbId, newCollection.id);
+                }
+                return Promise.resolve();
+              });
+
+              await Promise.all(movePromises);
+              console.log('All slideshows moved to collection');
+
+              toast.success(`Created collection "${collectionName}" with ${generatedUrls.length} slideshows`);
+            }
+          } catch (error) {
+            console.error('Error creating auto-collection:', error);
+            // Don't fail the whole process if collection creation fails
+          }
+        }
+
         // Sauvegarder les slideshows générés dans localStorage avec les images générées par l'API
         if (user?.id) {
           const existingSlideshows = JSON.parse(localStorage.getItem(`generated-slideshows-${user.id}`) || '[]');
@@ -726,7 +782,7 @@ export default function SlideshowPage() {
           });
           localStorage.setItem(`generated-slideshows-${user.id}`, JSON.stringify([...existingSlideshows, ...newSlideshows]));
         }
-        
+
         // Génération terminée avec succès
         setProgress(100);
         setGenerationComplete(true);
