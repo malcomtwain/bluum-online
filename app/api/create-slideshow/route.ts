@@ -442,14 +442,13 @@ export async function POST(request: Request) {
     
     // Sauvegarder le slideshow dans Supabase si l'utilisateur est connecté
     let supabaseUrl = null;
-    let databaseId = null;
     console.log('About to save slideshow. User ID:', userId);
     if (userId) {
       console.log('Saving slideshow to database for user:', userId);
       try {
         const slideshowPath = path.join(process.cwd(), 'public', 'generated-slideshows', `slideshow-${timestamp}`);
         const fileName = `slideshow-${timestamp}`;
-
+        
         // Pour l'instant, on ne sauvegarde pas les images individuelles mais plutôt les métadonnées
         // Car les images sont déjà sauvegardées localement dans public/generated-slideshows
         const uploadResult = await uploadAndSaveGeneratedSlideshow(
@@ -466,24 +465,22 @@ export async function POST(request: Request) {
             uniqueSeed: uniqueSeed
           }
         );
-
+        
         if (uploadResult) {
           supabaseUrl = uploadResult.file_url;
-          databaseId = uploadResult.id;
-          console.log('Slideshow saved to Supabase:', supabaseUrl, 'DB ID:', databaseId);
+          console.log('Slideshow saved to Supabase:', supabaseUrl);
         }
       } catch (error) {
         console.error('Failed to save slideshow to Supabase:', error);
         // Ne pas faire échouer la requête si Supabase échoue
       }
     }
-
+    
     // Retourner les images générées avec les informations de hook
     return NextResponse.json({
       success: true,
       images: generatedImages,
       slideshowId: `slideshow-${timestamp}`,
-      databaseId: databaseId, // Add database ID for collection assignment
       hookMode: hookMode,
       selectedRandomHook: hookMode === 'first' ? selectedRandomHook : undefined,
       perImageHooks: hookMode === 'each' ? Object.fromEntries(perImageHooks) : undefined,
