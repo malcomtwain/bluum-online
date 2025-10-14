@@ -1,0 +1,29 @@
+# Use Node.js base image
+FROM node:18-alpine
+
+# Install FFmpeg and other dependencies
+RUN apk add --no-cache ffmpeg
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy application files
+COPY . .
+
+# Build Next.js application
+RUN npm run build
+
+# Expose port
+EXPOSE 3000
+
+# Set environment to indicate we're on Render
+ENV RENDER=true
+
+# Start the application
+CMD ["npm", "start"]

@@ -1,0 +1,329 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { spawn, execSync } from 'child_process';
+import path from 'path';
+import fs from 'fs/promises';
+
+async function getDurationSeconds(filePath: string): Promise<number | null> {
+  return new Promise((resolve) => {
+    const ff = spawn('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', filePath]);
+    let out = '';
+    ff.stdout.on('data', (d) => (out += d.toString()));
+    ff.on('close', () => {
+      const secs = parseFloat((out || '').trim());
+      if (Number.isFinite(secs)) resolve(secs);
+      else resolve(null);
+    });
+    ff.on('error', () => resolve(null));
+  });
+}
+
+// Fonts disponibles dans /fonts/2000
+const fonts2000 = [
+  '/fonts/2000/Being Regular/OpenType-PS/Being-Regular.otf',
+  '/fonts/2000/Unique/Web-TT/Unique-Bold.ttf',
+  '/fonts/2000/Unique/Web-TT/Unique-SemiBold.ttf',
+  '/fonts/2000/THUNDER/Fonts/Web-TT/Thunder-BoldHC.ttf',
+  '/fonts/2000/THUNDER/Fonts/Web-TT/Thunder-ExtraBoldHC.ttf',
+  '/fonts/2000/Valencia.ttf',
+  '/fonts/2000/Alias/OpenType-TT/Alias-Bold.ttf',
+  '/fonts/2000/Alinsa/Alinsa.ttf',
+  '/fonts/2000/Lemon Regular/Web-TT/Lemon-Wide.ttf',
+  '/fonts/2000/AV-Estiana/OpenType-TT/AVEstiana-Bold.ttf',
+  '/fonts/2000/Estrella/Estrella-Early.otf',
+  '/fonts/2000/THUNDER/Fonts/Web-TT/Thunder-BlackHC.ttf'
+];
+
+// Fonction pour obtenir une font du dossier 2000
+function get2000Font(index: number): string {
+  const fontIndex = index % fonts2000.length;
+  return path.join(process.cwd(), 'public' + fonts2000[fontIndex]);
+}
+
+// Fonction pour formater le temps en format ASS (h:mm:ss.cc)
+function formatTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const cs = Math.floor((seconds % 1) * 100);
+  return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${cs.toString().padStart(2, '0')}`;
+}
+
+const ASSEMBLYAI_API_KEY = '2c397e767ef4496291e59dbf640080ce';
+
+async function extractLyrics(musicUrl: string): Promise<any> {
+  try {
+    console.log('[2000] Extracting lyrics from music...');
+
+    // Télécharger la musique
+    const musicResponse = await fetch(musicUrl);
+    const musicBuffer = await musicResponse.arrayBuffer();
+
+    // Upload vers AssemblyAI
+    const uploadResponse = await fetch('https://api.assemblyai.com/v2/upload', {
+      method: 'POST',
+      headers: {
+        'authorization': ASSEMBLYAI_API_KEY,
+      },
+      body: musicBuffer,
+    });
+
+    const { upload_url } = await uploadResponse.json();
+
+    // Créer la transcription
+    const transcriptResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
+      method: 'POST',
+      headers: {
+        'authorization': ASSEMBLYAI_API_KEY,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        audio_url: upload_url,
+        language_code: 'fr',
+      }),
+    });
+
+    const { id: transcriptId } = await transcriptResponse.json();
+
+    // Polling pour attendre la transcription
+    let transcript: any = null;
+    let attempts = 0;
+    const maxAttempts = 60;
+
+    while (attempts < maxAttempts) {
+      const pollingResponse = await fetch(`https://api.assemblyai.com/v2/transcript/${transcriptId}`, {
+        headers: {
+          'authorization': ASSEMBLYAI_API_KEY,
+        },
+      });
+
+      transcript = await pollingResponse.json();
+
+      if (transcript.status === 'completed') {
+        break;
+      } else if (transcript.status === 'error') {
+        throw new Error(`Transcription error: ${transcript.error}`);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      attempts++;
+    }
+
+    if (!transcript || transcript.status !== 'completed') {
+      throw new Error('Transcription timeout');
+    }
+
+    // Retourner les mots avec timestamps
+    return transcript.words.map((word: any) => ({
+      text: word.text.toUpperCase(),
+      start: word.start / 1000,
+      end: word.end / 1000,
+    }));
+
+  } catch (error) {
+    console.error('[2000] Lyrics extraction failed:', error);
+    return null;
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+
+    console.log('[2000] Received body:', {
+      hasVideos: !!body?.videos,
+      videosLength: body?.videos?.length || 0,
+      hasImages: !!body?.images,
+      imagesLength: body?.images?.length || 0,
+      hasMusic: !!body?.music,
+      musicUrl: body?.music?.url ? 'present' : 'missing'
+    });
+
+    const videos: any[] = body?.videos || [];
+    const music = body?.music;
+
+    // Fallback: try part2 if videos not provided
+    if ((!videos || videos.length === 0) && body?.part2?.url) {
+      const p2 = body.part2;
+      if (p2.type === 'video' || !p2.type) videos.push({ url: p2.url, duration: p2.duration?.max || p2.duration?.min });
+    }
+    if (!videos || videos.length === 0) {
+      console.error('[2000] No videos found in request');
+      return NextResponse.json({ error: 'At least 1 video is required' }, { status: 400 });
+    }
+
+    // Choose first video with duration >= 6s (if provided); otherwise check via ffprobe
+    let chosen = videos[0];
+    for (const v of videos) {
+      if (v?.duration && v.duration >= 6) { chosen = v; break; }
+    }
+
+    // Prepare temp paths
+    const ts = Date.now();
+    const tempDir = path.join(process.cwd(), 'public', 'generated-videos', `2000_${ts}`);
+    await fs.mkdir(tempDir, { recursive: true });
+
+    // Utiliser des chemins COURTS pour éviter E2BIG
+    let inputVideoPath: string;
+    if (chosen.url.startsWith('data:')) {
+      const data = chosen.url.replace(/^data:video\/\w+;base64,/, '');
+      inputVideoPath = `/tmp/i${ts}.mp4`;
+      await fs.writeFile(inputVideoPath, data, 'base64');
+    } else if (chosen.url.startsWith('http')) {
+      // Download to temp for duration check and processing
+      const res = await fetch(chosen.url);
+      const buf = Buffer.from(await res.arrayBuffer());
+      inputVideoPath = `/tmp/i${ts}.mp4`;
+      await fs.writeFile(inputVideoPath, buf);
+    } else {
+      inputVideoPath = chosen.url;
+    }
+
+    // Chemin de sortie COURT
+    const outputPath = `/tmp/o${ts}.mp4`;
+    const finalOutputPath = path.join(process.cwd(), 'public', 'generated-videos', `2000_${ts}.mp4`);
+
+    const videoFilters = [
+      'scale=1080:1920:force_original_aspect_ratio=increase',
+      'crop=1080:1920',
+      'setsar=1'
+    ];
+
+    // Enforce minimum 6s duration
+    const durationSec = await getDurationSeconds(inputVideoPath);
+    if (durationSec !== null && durationSec < 6) {
+      return NextResponse.json({ error: 'Video must be at least 6 seconds' }, { status: 400 });
+    }
+
+    // Paroles hardcodées YA GAMILA
+    const selectedLyrics = [
+      { text: 'YA', start: 0.00, end: 0.30 },
+      { text: 'GAMILA', start: 0.30, end: 1.47 },
+      { text: 'YA', start: 1.47, end: 1.77 },
+      { text: 'GAMILA', start: 1.77, end: 3.86 },
+      { text: 'YA', start: 3.86, end: 4.16 },
+      { text: 'GAMILA', start: 4.16, end: 5.69 },
+      { text: 'YA', start: 5.79, end: 6.09 },
+      { text: 'GAMILA', start: 6.09, end: 7.50 },
+    ];
+
+    console.log(`[2000] Processing ${selectedLyrics.length} words with multi-pass approach`);
+
+    // Télécharger la musique localement si c'est une data URL
+    let musicPath: string | undefined;
+    if (music?.url) {
+      if (music.url.startsWith('data:')) {
+        const data = music.url.replace(/^data:audio\/\w+;base64,/, '');
+        musicPath = `/tmp/m${ts}.mp3`;
+        await fs.writeFile(musicPath, data, 'base64');
+      } else if (music.url.startsWith('http')) {
+        const res = await fetch(music.url);
+        const buf = Buffer.from(await res.arrayBuffer());
+        musicPath = `/tmp/m${ts}.mp3`;
+        await fs.writeFile(musicPath, buf);
+      } else {
+        musicPath = music.url;
+      }
+    }
+
+    // Étape 1: Créer la vidéo de base avec resize + musique
+    const step1Path = `/tmp/s1_${ts}.mp4`;
+    const baseFilter = videoFilters.join(',');
+
+    const step1Args = musicPath ? [
+      '-i', inputVideoPath,
+      '-i', musicPath,
+      '-vf', baseFilter,
+      '-map', '0:v',
+      '-map', '1:a',
+      '-shortest',
+      '-c:v', 'libx264',
+      '-preset', 'medium',
+      '-crf', '23',
+      '-y', step1Path
+    ] : [
+      '-i', inputVideoPath,
+      '-vf', baseFilter,
+      '-c:v', 'libx264',
+      '-preset', 'medium',
+      '-crf', '23',
+      '-y', step1Path
+    ];
+
+    console.log('[2000] Step 1: Creating base video with music...');
+
+    await new Promise((resolve, reject) => {
+      const ff1 = spawn('ffmpeg', step1Args);
+      ff1.stderr.on('data', (d) => {
+        const msg = d.toString();
+        if (msg.includes('Error') || msg.includes('failed')) {
+          console.error('[2000 Step1]:', msg);
+        }
+      });
+      ff1.on('close', (code) => {
+        if (code === 0) resolve(null);
+        else reject(new Error('Step 1 failed'));
+      });
+      ff1.on('error', reject);
+    });
+
+    // Étape 2: Ajouter les textes un par un
+    let currentInput = step1Path;
+
+    for (let i = 0; i < selectedLyrics.length; i++) {
+      const lyric = selectedLyrics[i];
+      const fontPath = get2000Font(i);
+      const escapedText = lyric.text.replace(/'/g, "'").replace(/:/g, "\\:");
+      const stepOutput = i === selectedLyrics.length - 1 ? outputPath : `/tmp/s${i + 2}_${ts}.mp4`;
+
+      const textFilter = `drawtext=fontfile='${fontPath}':text='${escapedText}':fontcolor=white:fontsize=125:x=(w-text_w)/2:y=960:enable='between(t\\,${lyric.start}\\,${lyric.end})'`;
+
+      const stepArgs = [
+        '-i', currentInput,
+        '-vf', textFilter,
+        '-c:a', 'copy',
+        '-c:v', 'libx264',
+        '-preset', 'medium',
+        '-crf', '23',
+        '-y', stepOutput
+      ];
+
+      console.log(`[2000] Step ${i + 2}: Adding word "${lyric.text}"...`);
+
+      await new Promise((resolve, reject) => {
+        const ff = spawn('ffmpeg', stepArgs);
+        ff.stderr.on('data', (d) => {
+          const msg = d.toString();
+          if (msg.includes('Error') || msg.includes('failed')) {
+            console.error(`[2000 Step${i + 2}]:`, msg);
+          }
+        });
+        ff.on('close', (code) => {
+          if (code === 0) resolve(null);
+          else reject(new Error(`Step ${i + 2} failed`));
+        });
+        ff.on('error', reject);
+      });
+
+      // Nettoyer le fichier d'entrée précédent
+      if (i > 0) {
+        await fs.unlink(currentInput).catch(() => {});
+      }
+
+      currentInput = stepOutput;
+    }
+
+    // Nettoyer les fichiers temporaires
+    await fs.unlink(step1Path).catch(() => {});
+    await fs.unlink(inputVideoPath).catch(() => {});
+    if (musicPath) await fs.unlink(musicPath).catch(() => {});
+
+    // Copier le fichier de sortie vers le chemin final
+    await fs.copyFile(outputPath, finalOutputPath);
+    await fs.unlink(outputPath).catch(() => {});
+
+    return NextResponse.json({ success: true, videoPath: `/generated-videos/2000_${ts}.mp4` });
+  } catch (e: any) {
+    console.error('[2000] Error:', e);
+    return NextResponse.json({ error: e?.message || 'Failed to generate 2000 template' }, { status: 500 });
+  }
+}

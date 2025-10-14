@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test TikTok OAuth</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .button {
+            background: #000;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px;
+        }
+        .info {
+            background: #f0f0f0;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        code {
+            background: #333;
+            color: #0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎯 Test TikTok OAuth Direct</h1>
+    
+    <div class="info">
+        <h3>Configuration actuelle :</h3>
+        <p><strong>Client Key:</strong> <code id="client-key">aw0mvywpits9o5q1</code></p>
+        <p><strong>Redirect URI:</strong> <code id="redirect-uri">http://localhost:3000/api/tiktok/callback</code></p>
+        <p><strong>Scopes:</strong> <code>user.info.basic,user.info.profile,user.info.stats,video.list,video.publish,video.upload</code></p>
+    </div>
+
+    <div>
+        <h3>Méthode 1: OAuth Web Standard</h3>
+        <a id="oauth-link" href="#" class="button" onclick="startOAuth(); return false;">
+            🚀 Connecter TikTok (OAuth)
+        </a>
+    </div>
+
+    <div class="info">
+        <h3>Instructions :</h3>
+        <ol>
+            <li>Assurez-vous d'avoir ajouté <code>http://localhost:3000/api/tiktok/callback</code> dans TikTok Developer</li>
+            <li>Votre compte doit être ajouté comme testeur dans l'app</li>
+            <li>Cliquez sur le bouton pour tester la connexion</li>
+        </ol>
+    </div>
+
+    <div id="result" style="display:none;" class="info">
+        <h3>Résultat :</h3>
+        <pre id="result-content"></pre>
+    </div>
+
+    <script>
+        // Configuration
+        const CLIENT_KEY = 'aw0mvywpits9o5q1'; // Remplacez par votre client key
+        const REDIRECT_URI = 'http://localhost:3000/api/tiktok/callback';
+        const SCOPE = 'user.info.basic,user.info.profile,user.info.stats,video.list,video.publish,video.upload';
+        
+        function startOAuth() {
+            // Générer un state aléatoire
+            const state = Math.random().toString(36).substring(7);
+            localStorage.setItem('tiktok_state', state);
+            
+            // Construire l'URL OAuth
+            const params = new URLSearchParams({
+                client_key: CLIENT_KEY,
+                scope: SCOPE,
+                response_type: 'code',
+                redirect_uri: REDIRECT_URI,
+                state: state
+            });
+            
+            const authUrl = `https://www.tiktok.com/v2/auth/authorize?${params.toString()}`;
+            
+            console.log('Redirecting to:', authUrl);
+            window.location.href = authUrl;
+        }
+        
+        // Vérifier si on revient du callback
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('code')) {
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('result-content').textContent = 
+                'Code reçu: ' + urlParams.get('code') + '\n' +
+                'State: ' + urlParams.get('state');
+        }
+    </script>
+</body>
+</html>

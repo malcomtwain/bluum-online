@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Supabase Auth</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Test Supabase Authentication</h1>
+    
+    <div>
+        <h3>Create Account</h3>
+        <input type="email" id="email" value="4rain.uknow@gmail.com" placeholder="Email">
+        <input type="password" id="password" value="Splifdc3" placeholder="Password">
+        <button onclick="testSignup()">Test Signup</button>
+    </div>
+    
+    <div>
+        <h3>Results</h3>
+        <pre id="results"></pre>
+    </div>
+
+    <script>
+        // Initialiser Supabase avec tes credentials
+        const supabase = window.supabase.createClient(
+            'https://wjtguiusxvxaabutfxls.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqdGd1aXVzeHZ4YWFidXRmeGxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzNTkxMDksImV4cCI6MjA2ODkzNTEwOX0.4sIdI3m2QF_KP3EdmSR7N92pnET4ApLt_FNpuoR-234'
+        );
+
+        async function testSignup() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const resultsDiv = document.getElementById('results');
+            
+            try {
+                console.log('Testing signup with:', { email, password: '***' });
+                
+                const { data, error } = await supabase.auth.signUp({
+                    email: email,
+                    password: password,
+                    options: {
+                        data: {
+                            full_name: '4Rain Test'
+                        }
+                    }
+                });
+                
+                if (error) {
+                    console.error('Signup error:', error);
+                    resultsDiv.textContent = `Error: ${error.message}\nDetails: ${JSON.stringify(error, null, 2)}`;
+                } else {
+                    console.log('Signup success:', data);
+                    resultsDiv.textContent = `Success!\nUser: ${JSON.stringify(data.user, null, 2)}`;
+                }
+            } catch (err) {
+                console.error('Unexpected error:', err);
+                resultsDiv.textContent = `Unexpected error: ${err.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

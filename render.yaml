@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: bluum
+    env: docker
+    plan: free # GRATUIT !
+    dockerfilePath: ./Dockerfile.render
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
+        sync: false
+      - key: RENDER
+        value: true

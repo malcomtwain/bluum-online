@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: bluum-video-worker
+    env: docker
+    region: oregon
+    plan: starter  # 512MB RAM - Si ça crash, upgrade à "standard" (2GB)
+    dockerfilePath: ./Dockerfile
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 18.18.0
+      - key: WORKER_ID
+        generateValue: true
+      - key: POLL_INTERVAL
+        value: 5000
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=450
+    autoDeploy: true

@@ -1,0 +1,25 @@
+// Option pour désactiver complètement l'autoplay au hover
+// Remplace les événements onMouseEnter/onMouseLeave par :
+
+// Juste afficher un bouton play au hover
+onMouseEnter={undefined}
+onMouseLeave={undefined}
+
+// Et ajouter un bouton play au centre :
+<div className="absolute inset-0 flex items-center justify-center">
+  <button
+    onClick={() => {
+      const video = videoRef.current;
+      if (video.paused) {
+        video.play();
+      } else {
+        video.pause();
+      }
+    }}
+    className="bg-white/80 hover:bg-white rounded-full p-3 opacity-0 group-hover:opacity-100 transition-opacity"
+  >
+    <svg className="w-6 h-6 text-black fill-black ml-0.5" viewBox="0 0 24 24">
+      <path d="M8 5v14l11-7z"/>
+    </svg>
+  </button>
+</div>

@@ -1,0 +1,16 @@
+app/music/page.tsx
+app/auth/[[...auth]]/page.tsx
+app/new-project/page.tsx
+app/videos/loading.tsx
+app/videos/page.tsx
+app/layout.tsx
+app/error.tsx
+app/loading.tsx
+app/page.tsx
+app/create/upgrade-buttons.tsx
+app/create/loading.tsx
+app/create/page.tsx
+app/pricing/loading.tsx
+app/pricing/page.tsx
+app/not-found.tsx
+app/media/page.tsx

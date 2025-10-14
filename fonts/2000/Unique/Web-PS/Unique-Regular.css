@@ -1,0 +1,9 @@
+/* Webfont: Unique-Regular */@font-face {
+    font-family: 'Unique';
+    src: url('Unique-Regular.woff2') format('woff2'), /* Modern Browsers */
+         url('Unique-Regular.otf') format('opentype'); /* Safari, Android, iOS */
+             font-style: normal;
+    font-weight: normal;
+    text-rendering: optimizeLegibility;
+}
+

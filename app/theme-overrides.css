@@ -1,0 +1,30 @@
+/* Fichier d'override pour le thème */
+
+/* Tous les blancs sont remplacés par #fafafa */
+.bg-white,
+div[class*="bg-white"] {
+  background-color: #fafafa !important;
+}
+
+/* En mode sombre */
+.dark .bg-white,
+.dark div[class*="bg-white"] {
+  background-color: #0a0a0c !important;
+}
+
+/* Règle pour les éléments avec une classe contenant white */
+[class*="white"] {
+  --white-color: #fafafa;
+}
+
+/* Traitement des boutons */
+.dark button[class*="bg-[#5564ff]"],
+.dark [class*="bg-[#5564ff]"] {
+  background-color: #fafafa !important;
+  color: #0a0a0c !important;
+}
+
+.dark button[class*="hover:bg-[#5564ff]"]:hover,
+.dark [class*="hover:bg-[#5564ff]"]:hover {
+  background-color: rgba(250, 250, 250, 0.9) !important;
+} 

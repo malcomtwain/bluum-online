@@ -1,0 +1,9 @@
+/* Webfont: Unique-Bold */@font-face {
+    font-family: 'Unique';
+    src: url('Unique-Bold.woff2') format('woff2'), /* Modern Browsers */
+         url('Unique-Bold.otf') format('opentype'); /* Safari, Android, iOS */
+             font-style: normal;
+    font-weight: bold;
+    text-rendering: optimizeLegibility;
+}
+

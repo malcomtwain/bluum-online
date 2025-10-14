@@ -1,0 +1,12 @@
+/* Webfont: Lemon-Wide */@font-face {
+    font-family: 'LemonWide';
+    src: url('Lemon-Wide.eot'); /* IE9 Compat Modes */
+    src: url('Lemon-Wide.eot?#iefix') format('embedded-opentype'), /* IE6-IE8 */
+         url('Lemon-Wide.woff') format('woff'), /* Modern Browsers */
+         url('Lemon-Wide.woff2') format('woff2'), /* Modern Browsers */
+         url('Lemon-Wide.ttf') format('truetype'); /* Safari, Android, iOS */
+             font-style: normal;
+    font-weight: normal;
+    text-rendering: optimizeLegibility;
+}
+

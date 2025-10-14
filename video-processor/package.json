@@ -1,0 +1,18 @@
+{
+  "name": "video-processor",
+  "version": "1.0.0",
+  "description": "Video processing service for Bluum",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "fluent-ffmpeg": "^2.1.2",
+    "axios": "^1.6.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
