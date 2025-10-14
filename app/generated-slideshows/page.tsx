@@ -122,31 +122,18 @@ export default function GeneratedSlideshowsPage() {
       for (const slideshow of currentSlideshows) {
         console.log('Processing slideshow:', slideshow.id, 'file_url:', slideshow.file_url);
 
-        // Extract slideshow folder name from file_url (Supabase Storage URL)
-        const match = slideshow.file_url.match(/slideshow-\d+/);
-        if (match) {
-          const slideshowFolder = match[0];
-          console.log('Found slideshow folder:', slideshowFolder);
+        // file_url est le chemin du dossier du slideshow (ex: /generated-slideshows/slideshow-1760483463844)
+        const imageUrls: string[] = [];
+        const imageCount = slideshow.image_count || 5;
 
-          // Generate image URLs from Supabase Storage
-          const imageUrls: string[] = [];
-          const imageCount = slideshow.image_count || 5;
-
-          // Get base URL from file_url (everything before the filename)
-          const baseUrl = slideshow.file_url.substring(0, slideshow.file_url.lastIndexOf('/'));
-          console.log('Base URL:', baseUrl);
-
-          for (let i = 1; i <= imageCount; i++) {
-            // Use Supabase Storage URL instead of local path
-            const imageUrl = `${baseUrl}/part_${i}.png`;
-            console.log(`Image ${i} URL:`, imageUrl);
-            imageUrls.push(imageUrl);
-          }
-
-          newImages[slideshow.id] = imageUrls;
-        } else {
-          console.warn('No slideshow folder match for:', slideshow.file_url);
+        for (let i = 1; i <= imageCount; i++) {
+          // Les images sont dans le même dossier que le file_url
+          const imageUrl = `${slideshow.file_url}/part_${i}.png`;
+          console.log(`Image ${i} URL:`, imageUrl);
+          imageUrls.push(imageUrl);
         }
+
+        newImages[slideshow.id] = imageUrls;
       }
 
       console.log('Loaded images:', newImages);

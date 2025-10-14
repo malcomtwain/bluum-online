@@ -115,25 +115,69 @@ export async function uploadAndSaveGeneratedSlideshow(
   metadata?: any
 ): Promise<{ url: string; id: string; file_url: string } | null> {
   try {
-    console.log('🎬 Starting slideshow save process...');
+    console.log('🎬 Starting slideshow upload to Supabase...');
     console.log('User ID:', userId);
     console.log('File name:', fileName);
-    console.log('Local path:', localFilePath);
-    
-    // For slideshows, we save the folder path - images will be accessed individually
-    const publicUrl = `/generated-slideshows/${fileName}`;
-    console.log('Public URL:', publicUrl);
-    
+    console.log('Local folder path:', localFilePath);
+
+    const supabase = getSupabaseServiceClient();
+    if (!supabase) {
+      console.error('❌ Supabase client not initialized - missing service key');
+      return null;
+    }
+
+    // Upload all slideshow images to Supabase Storage
+    const timestamp = Date.now();
+    const basePath = `${userId}/slideshows/${fileName}`;
+    console.log('📁 Base storage path:', basePath);
+
+    // Read all part_*.png files from the local directory
+    const files = await fs.readdir(localFilePath);
+    const imageFiles = files.filter(f => f.startsWith('part_') && f.endsWith('.png'));
+    console.log(`📸 Found ${imageFiles.length} images to upload`);
+
+    // Upload each image
+    for (const imageFile of imageFiles) {
+      const imagePath = path.join(localFilePath, imageFile);
+      const fileBuffer = await fs.readFile(imagePath);
+      const fileBlob = new Blob([fileBuffer], { type: 'image/png' });
+
+      const storagePath = `${basePath}/${imageFile}`;
+      console.log(`⬆️ Uploading ${imageFile}...`);
+
+      const { error: uploadError } = await supabase.storage
+        .from('generated-media')
+        .upload(storagePath, fileBlob, {
+          contentType: 'image/png',
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error(`❌ Error uploading ${imageFile}:`, uploadError);
+        return null;
+      }
+    }
+
+    console.log('✅ All images uploaded successfully');
+
+    // Get public URL for the folder
+    const { data: { publicUrl } } = supabase.storage
+      .from('generated-media')
+      .getPublicUrl(basePath);
+
+    console.log('🔗 Public URL:', publicUrl);
+
     const savedSlideshow = await saveGeneratedSlideshow(
       userId,
       fileName,
-      localFilePath,
+      basePath,
       publicUrl,
       imageCount,
       styleType,
       metadata
     );
-    
+
     if (savedSlideshow) {
       console.log('✅ Slideshow saved to database with ID:', savedSlideshow.id);
       return {
