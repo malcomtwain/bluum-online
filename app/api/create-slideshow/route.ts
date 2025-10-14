@@ -469,17 +469,24 @@ export async function POST(request: Request) {
         if (uploadResult) {
           supabaseUrl = uploadResult.file_url;
           console.log('Slideshow saved to Supabase:', supabaseUrl);
+
+          // Replace local paths with Supabase URLs
+          generatedImages = [];
+          for (let i = 1; i <= imageCount; i++) {
+            generatedImages.push(`${supabaseUrl}/part_${i}.png`);
+          }
+          console.log('Updated image URLs to Supabase paths:', generatedImages);
         }
       } catch (error) {
         console.error('Failed to save slideshow to Supabase:', error);
         // Ne pas faire échouer la requête si Supabase échoue
       }
     }
-    
+
     // Retourner les images générées avec les informations de hook
     return NextResponse.json({
       success: true,
-      images: generatedImages,
+      images: generatedImages, // Now contains Supabase URLs if upload succeeded
       slideshowId: `slideshow-${timestamp}`,
       hookMode: hookMode,
       selectedRandomHook: hookMode === 'first' ? selectedRandomHook : undefined,
