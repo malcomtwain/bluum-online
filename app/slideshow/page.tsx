@@ -677,15 +677,15 @@ export default function SlideshowPage() {
           }
           
           const result = await response.json();
-          
-          // Store the slideshow ID and the ORIGINAL images used (not the generated paths)
+
+          // Store the slideshow ID and the GENERATED images (with hooks applied)
           if (result.slideshowId) {
             const slideshowId = result.slideshowId;
             generatedUrls.push(slideshowId);
-            // Store the ORIGINAL images that were sent to the API
-            allGeneratedImages[slideshowId] = validImages;
-            console.log(`Stored images for slideshow ${slideshowId}:`, validImages);
-            
+            // Store the GENERATED images paths returned by the API (these have hooks applied)
+            allGeneratedImages[slideshowId] = result.images || validImages;
+            console.log(`Stored generated images for slideshow ${slideshowId}:`, result.images);
+
             // Store hook metadata if needed for display
             if (result.hookText) {
               console.log('Slideshow created with hook:', result.hookText, 'Style:', result.hookStyle);
