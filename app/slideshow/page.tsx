@@ -605,15 +605,34 @@ export default function SlideshowPage() {
               console.log('No hooks text provided');
             }
           } else if (hookMode === 'each') {
-            // Mode "Hook per each image" 
-            console.log('Processing EACH mode');
+            // Mode "Hook per each image" - avec randomisation intelligente
+            console.log('Processing EACH mode with intelligent randomization');
+
+            // Pour chaque position d'image, on parse les lignes et on en sélectionne une aléatoirement
             hooksToSend = Object.entries(slideshowHooksPerImage)
-              .map(([position, hookText]) => ({
-                position: parseInt(position),
-                text: hookText
-              }))
-              .filter(h => h.text && h.text.trim());
-            console.log(`Slideshow ${i + 1} will use per-image hooks:`, hooksToSend);
+              .map(([position, hookText]) => {
+                if (!hookText || !hookText.trim()) return null;
+
+                // Parser les lignes (1 ligne = 1 hook possible)
+                const hookLines = hookText.split('\n').filter(line => line.trim());
+
+                if (hookLines.length === 0) return null;
+
+                // Randomisation intelligente avec seed unique pour chaque position + slideshow
+                const randomSeed = Date.now() + i * 9973 + parseInt(position) * 7919 + Math.random() * 10000;
+                const randomIndex = Math.floor(Math.abs(Math.sin(randomSeed * 0.001) * 10000) % hookLines.length);
+                const selectedHook = hookLines[randomIndex];
+
+                console.log(`🎲 Position ${position}: seed=${randomSeed}, selected hook ${randomIndex}/${hookLines.length}: "${selectedHook}"`);
+
+                return {
+                  position: parseInt(position),
+                  text: selectedHook
+                };
+              })
+              .filter((h): h is { position: number; text: string } => h !== null);
+
+            console.log(`Slideshow ${i + 1} will use per-image hooks (randomized):`, hooksToSend);
           } else {
             console.log('No hook mode matched - staying empty');
           }
