@@ -122,7 +122,7 @@ export default function GeneratedSlideshowsPage() {
       for (const slideshow of currentSlideshows) {
         console.log('Processing slideshow:', slideshow.id, 'file_url:', slideshow.file_url);
 
-        // file_url est le chemin du dossier du slideshow (ex: /generated-slideshows/slideshow-1760483463844)
+        // file_url peut être soit une URL Supabase complète, soit un chemin local
         const imageUrls: string[] = [];
         const imageCount = slideshow.image_count || 5;
 
@@ -172,8 +172,22 @@ export default function GeneratedSlideshowsPage() {
 
   const downloadSlideshowImages = async (slideshowId: string) => {
     try {
-      const images = slideshowImages[slideshowId];
-      if (!images || images.length === 0) {
+      // Find the slideshow in the full list (not just current page)
+      const slideshow = allSlideshows.find(s => s.id === slideshowId);
+      if (!slideshow) {
+        throw new Error('Slideshow not found');
+      }
+
+      // Build image URLs from slideshow metadata
+      const imageUrls: string[] = [];
+      const imageCount = slideshow.image_count || 5;
+
+      for (let i = 1; i <= imageCount; i++) {
+        const imageUrl = `${slideshow.file_url}/part_${i}.png`;
+        imageUrls.push(imageUrl);
+      }
+
+      if (imageUrls.length === 0) {
         throw new Error('No images found for this slideshow');
       }
 
@@ -182,8 +196,8 @@ export default function GeneratedSlideshowsPage() {
       const zip = new JSZip();
 
       // Add each image to the ZIP
-      for (let i = 0; i < images.length; i++) {
-        const imageUrl = images[i];
+      for (let i = 0; i < imageUrls.length; i++) {
+        const imageUrl = imageUrls[i];
         try {
           const response = await fetch(imageUrl);
           if (response.ok) {
