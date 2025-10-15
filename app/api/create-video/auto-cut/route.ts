@@ -263,7 +263,7 @@ export async function POST(req: Request) {
       await page.screenshot({ path: hookImagePath, omitBackground: true, type: 'png' });
       await browser.close();
 
-      const videoWithHookPath = join(process.cwd(), 'public', 'generated', `video_with_hook_${timestamp}.mp4`);
+      const videoWithHookPath = join(tempOutputDir, `video_with_hook_${timestamp}.mp4`);
       let yPos = '96'; // 5% de 1920px pour position top
       if (position === 'middle') yPos = '(H-h)/2';
       else if (position === 'bottom') yPos = 'H-h-360'; // 75% de 1920px pour bottom
