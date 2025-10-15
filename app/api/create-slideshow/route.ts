@@ -306,7 +306,7 @@ export async function POST(request: Request) {
     }
 
     // Array pour stocker les chemins des images générées
-    const generatedImages: string[] = [];
+    let generatedImages: string[] = [];
 
     // Mélanger intelligemment les images pour éviter les répétitions
     const shuffledImages = smartShuffleImages(images, uniqueSeed);
