@@ -448,9 +448,15 @@ export async function POST(request: Request) {
       try {
         const slideshowPath = path.join(process.cwd(), 'public', 'generated-slideshows', `slideshow-${timestamp}`);
         const fileName = `slideshow-${timestamp}`;
-        
-        // Pour l'instant, on ne sauvegarde pas les images individuelles mais plutôt les métadonnées
-        // Car les images sont déjà sauvegardées localement dans public/generated-slideshows
+
+        console.log('📁 Slideshow path to upload:', slideshowPath);
+        console.log('📂 Directory exists:', fs.existsSync(slideshowPath));
+        if (fs.existsSync(slideshowPath)) {
+          const files = fs.readdirSync(slideshowPath);
+          console.log('📸 Files in directory:', files);
+        }
+
+        // Upload slideshow images to Supabase
         const uploadResult = await uploadAndSaveGeneratedSlideshow(
           userId,
           slideshowPath,
@@ -465,22 +471,26 @@ export async function POST(request: Request) {
             uniqueSeed: uniqueSeed
           }
         );
-        
+
         if (uploadResult) {
           supabaseUrl = uploadResult.file_url;
-          console.log('Slideshow saved to Supabase:', supabaseUrl);
+          console.log('✅ Slideshow saved to Supabase:', supabaseUrl);
 
           // Replace local paths with Supabase URLs
           generatedImages = [];
           for (let i = 1; i <= imageCount; i++) {
             generatedImages.push(`${supabaseUrl}/part_${i}.png`);
           }
-          console.log('Updated image URLs to Supabase paths:', generatedImages);
+          console.log('✅ Updated image URLs to Supabase paths:', generatedImages);
+        } else {
+          console.error('❌ Upload result is null - slideshow not saved to Supabase');
         }
       } catch (error) {
-        console.error('Failed to save slideshow to Supabase:', error);
+        console.error('❌ Failed to save slideshow to Supabase:', error);
         // Ne pas faire échouer la requête si Supabase échoue
       }
+    } else {
+      console.log('⚠️ No user ID - slideshow will not be saved to Supabase');
     }
 
     // Retourner les images générées avec les informations de hook
