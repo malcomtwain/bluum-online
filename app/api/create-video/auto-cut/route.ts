@@ -209,28 +209,13 @@ export async function POST(req: Request) {
       const targetWidth = 1080;
       const targetHeight = 1920;
       let cmd = '';
-      // Générer des valeurs aléatoires subtiles pour l'originalité
-      const brightness = (Math.random() * 0.3 - 0.15).toFixed(3); // -0.15 à +0.15
-      const contrast = (1 + Math.random() * 0.4 - 0.2).toFixed(3); // 0.8 à 1.2
-      const saturation = (1 + Math.random() * 0.3 - 0.15).toFixed(3); // 0.85 à 1.15
-      const gamma = (1 + Math.random() * 0.2 - 0.1).toFixed(3); // 0.9 à 1.1
-      const speedFactor = (1 + Math.random() * 0.1 - 0.05).toFixed(3); // 0.95 à 1.05
 
-      // Filtres optionnels aléatoires (30% de chance)
-      const randomEffects = [];
-      if (Math.random() < 0.3) {
-        const sharpening = (Math.random() * 0.5 + 0.5).toFixed(3); // 0.5 à 1.0
-        randomEffects.push(`unsharp=5:5:${sharpening}:5:5:0.0`);
-      }
-
-      const effectsStr = randomEffects.length > 0 ? `,${randomEffects.join(',')}` : '';
-      
       if (isImg || p.type === 'image') {
-        console.log(`[AutoCut] Part ${i + 1} (image) - applying filters: brightness:${brightness}, contrast:${contrast}, saturation:${saturation}, gamma:${gamma}, effects:${randomEffects.join(',')}`);
-        cmd = `ffmpeg -loop 1 -i "${src}" -t ${partDuration ?? 3} -vf "scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=increase,crop=${targetWidth}:${targetHeight},eq=brightness=${brightness}:contrast=${contrast}:saturation=${saturation}:gamma=${gamma}${effectsStr},setsar=1" -c:v libx264 -pix_fmt yuv420p -r 30 "${scaled}"`;
+        console.log(`[AutoCut] Part ${i + 1} (image) - duration: ${partDuration ?? 3}s`);
+        cmd = `ffmpeg -loop 1 -i "${src}" -t ${partDuration ?? 3} -vf "scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=increase,crop=${targetWidth}:${targetHeight},setsar=1" -c:v libx264 -pix_fmt yuv420p -r 30 "${scaled}"`;
       } else {
-        console.log(`[AutoCut] Part ${i + 1} (video) - applying filters: brightness:${brightness}, contrast:${contrast}, saturation:${saturation}, gamma:${gamma}, speed:${speedFactor}, effects:${randomEffects.join(',')}`);
-        cmd = `ffmpeg -i "${src}" -vf "scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=increase,crop=${targetWidth}:${targetHeight},eq=brightness=${brightness}:contrast=${contrast}:saturation=${saturation}:gamma=${gamma},setpts=${speedFactor}*PTS${effectsStr},setsar=1" -c:v libx264 -pix_fmt yuv420p -r 30 "${scaled}"`;
+        console.log(`[AutoCut] Part ${i + 1} (video)`);
+        cmd = `ffmpeg -i "${src}" -vf "scale=${targetWidth}:${targetHeight}:force_original_aspect_ratio=increase,crop=${targetWidth}:${targetHeight},setsar=1" -c:v libx264 -pix_fmt yuv420p -r 30 "${scaled}"`;
       }
       await execPromise(cmd);
       scaledPaths.push(scaled);
@@ -240,16 +225,10 @@ export async function POST(req: Request) {
     const inputs = scaledPaths.map((p) => `-i "${p}"`).join(' ');
     const n = scaledPaths.length;
 
-    // Générer des filtres globaux finaux pour l'originalité
-    const finalBrightness = (Math.random() * 0.2 - 0.1).toFixed(3); // -0.1 à +0.1 (plus subtil)
-    const finalContrast = (1 + Math.random() * 0.2 - 0.1).toFixed(3); // 0.9 à 1.1
-    const finalSaturation = (1 + Math.random() * 0.2 - 0.1).toFixed(3); // 0.9 à 1.1
-    const finalSpeedAdjust = (1 + Math.random() * 0.08 - 0.04).toFixed(3); // 0.96 à 1.04
-    
-    console.log(`[AutoCut] Final video filters - brightness:${finalBrightness}, contrast:${finalContrast}, saturation:${finalSaturation}, speed:${finalSpeedAdjust}`);
+    console.log(`[AutoCut] Concatenating ${n} parts with audio`);
 
     const concatInputs = scaledPaths.map((_, idx) => `[${idx}:v]`).join('');
-    let finalCmd = `ffmpeg ${inputs} -i "${songPath}" -filter_complex "${concatInputs}concat=n=${n}:v=1:a=0[concat];[concat]eq=brightness=${finalBrightness}:contrast=${finalContrast}:saturation=${finalSaturation},setpts=${finalSpeedAdjust}*PTS[outv];[${n}:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[outa]" -map "[outv]" -map "[outa]" -c:v libx264 -c:a aac -shortest "${outputPath}"`;
+    let finalCmd = `ffmpeg ${inputs} -i "${songPath}" -filter_complex "${concatInputs}concat=n=${n}:v=1:a=0[outv];[${n}:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[outa]" -map "[outv]" -map "[outa]" -c:v libx264 -c:a aac -shortest "${outputPath}"`;
 
     updateProgress(0);
     await execPromise(finalCmd);
