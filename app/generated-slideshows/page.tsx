@@ -293,18 +293,52 @@ export default function GeneratedSlideshowsPage() {
       toast.error('No slideshows selected');
       return;
     }
-    
+
     setIsDownloading(true);
     try {
-      // For slideshows stored as videos, download them similarly to videos
-      const selectedSlideshow = slideshows
-        .filter(s => selectedSlideshows.includes(s.id));
-      
-      // Download each slideshow as ZIP (images only)
-      for (const slideshow of selectedSlideshow) {
-        await handleDownloadSlideshow(slideshow.id);
+      // Create a single ZIP containing all selected slideshows
+      const JSZip = (await import('jszip')).default;
+      const masterZip = new JSZip();
+
+      // Get selected slideshows from allSlideshows
+      const selectedSlideshowsList = allSlideshows.filter(s => selectedSlideshows.includes(s.id));
+
+      // Add each slideshow to the master ZIP
+      for (let idx = 0; idx < selectedSlideshowsList.length; idx++) {
+        const slideshow = selectedSlideshowsList[idx];
+        const imageCount = slideshow.image_count || 5;
+
+        // Create a folder for this slideshow (using index for naming)
+        const folderName = `slideshow_${idx + 1}`;
+
+        // Download and add each image
+        for (let i = 1; i <= imageCount; i++) {
+          const imageUrl = `${slideshow.file_url}/part_${i}.png`;
+          try {
+            const response = await fetch(imageUrl);
+            if (response.ok) {
+              const blob = await response.blob();
+              masterZip.file(`${folderName}/part_${i}.png`, blob);
+            }
+          } catch (err) {
+            console.warn(`Failed to add image ${i} from slideshow ${slideshow.id}:`, err);
+          }
+        }
       }
-      
+
+      // Generate and download the master ZIP
+      const zipBlob = await masterZip.generateAsync({ type: 'blob' });
+      const zipUrl = URL.createObjectURL(zipBlob);
+
+      const link = document.createElement('a');
+      link.href = zipUrl;
+      link.download = `slideshows-${selectedSlideshows.length}-${Date.now()}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      URL.revokeObjectURL(zipUrl);
+
       toast.success(`${selectedSlideshows.length} slideshows downloaded!`);
     } catch (error) {
       console.error('Error downloading slideshows:', error);
