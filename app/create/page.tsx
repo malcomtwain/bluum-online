@@ -2730,15 +2730,29 @@ export default function CreatePage() {
               ...collectionImages.map(img => ({ ...img, type: 'image' })),
               ...collectionVideos.map(vid => ({ ...vid, type: 'video' }))
             ];
-            
-            // Utiliser tous les médias disponibles dans la collection
-            const availableMediaCount = allMedia.length;
-            const mediaCount = availableMediaCount;
 
-            console.log(`[AutoCut] Using all available media: ${mediaCount} items`);
+            // Calculer le nombre d'images nécessaires selon la durée de la musique
+            const musicDuration = selectedSong!.duration || 30; // Durée en secondes
 
-            // Utiliser tous les médias disponibles
-            const selectedMedia = allMedia;
+            // Pour "for-a-living":
+            // - 8 premières images avec timestamps spécifiques (total ~4.1s)
+            // - Reste avec 0.35s par image
+            let neededMediaCount: number;
+            if (autoCutTemplate === 'for-a-living') {
+              const firstCutsDuration = 4.1; // Durée des 8 premières images
+              const remainingDuration = Math.max(0, musicDuration - firstCutsDuration);
+              const remainingImages = Math.ceil(remainingDuration / 0.35);
+              neededMediaCount = Math.min(8 + remainingImages, allMedia.length);
+            } else {
+              // Pour les autres templates, estimer ~2s par média en moyenne
+              neededMediaCount = Math.min(Math.ceil(musicDuration / 2), allMedia.length);
+            }
+
+            console.log(`[AutoCut] Music duration: ${musicDuration}s, selecting ${neededMediaCount}/${allMedia.length} media items`);
+
+            // Sélectionner aléatoirement le nombre nécessaire de médias
+            const shuffled = [...allMedia].sort(() => Math.random() - 0.5);
+            const selectedMedia = shuffled.slice(0, neededMediaCount);
             
             // Séparer images et vidéos pour traitement
             const images = selectedMedia.filter(m => m.type === 'image');
