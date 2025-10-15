@@ -591,13 +591,9 @@ export default function SlideshowPage() {
               const allHookLines = hooks.split('\n').filter(line => line.trim());
               console.log('Hook lines found:', allHookLines);
               if (allHookLines.length > 0) {
-                // Sélection aléatoire des hooks pour éviter la répétition
-                const randomSeed = Date.now() + i * 9973 + Math.random() * 10000;
-                const randomIndex = Math.floor((Math.sin(randomSeed * 0.001) * 10000) % allHookLines.length);
-                const hookIndex = Math.abs(randomIndex);
-                hooksToSend = [allHookLines[hookIndex]];
-                console.log(`🎲 Slideshow ${i + 1} random selection: seed=${randomSeed}, index=${hookIndex}/${allHookLines.length}`);
-                console.log(`🎯 Selected hook: "${allHookLines[hookIndex]}"`);
+                // Envoyer TOUS les hooks au backend, qui fera sa propre sélection aléatoire
+                hooksToSend = allHookLines;
+                console.log(`📤 Sending ${allHookLines.length} hooks to backend for random selection`);
               } else {
                 console.log('No valid hook lines found');
               }
