@@ -175,27 +175,12 @@ export async function POST(request: NextRequest) {
 
         // Ajouter le hook sur l'image avec FFmpeg (overlay)
         await new Promise((resolve, reject) => {
-          // Générer des valeurs aléatoires subtiles pour l'originalité
-          const brightness = (Math.random() * 0.3 - 0.15).toFixed(3); // -0.15 à +0.15
-          const contrast = (1 + Math.random() * 0.4 - 0.2).toFixed(3); // 0.8 à 1.2
-          const saturation = (1 + Math.random() * 0.3 - 0.15).toFixed(3); // 0.85 à 1.15
-          const gamma = (1 + Math.random() * 0.2 - 0.1).toFixed(3); // 0.9 à 1.1
+          console.log(`[Add Hook] Processing image`);
 
-          // Filtres optionnels aléatoires (30% de chance)
-          const randomEffects = [];
-          if (Math.random() < 0.3) {
-            const sharpening = (Math.random() * 0.5 + 0.5).toFixed(3); // 0.5 à 1.0
-            randomEffects.push(`unsharp=5:5:${sharpening}:5:5:0.0`);
-          }
-
-          console.log(`[Add Hook] Applying filters to image - brightness:${brightness}, contrast:${contrast}, saturation:${saturation}, gamma:${gamma}, effects:${randomEffects.join(',')}`);
-
-          // Build filter chain: scale image, apply effects, then overlay hook
+          // Build filter chain: scale image then overlay hook
           const videoFilters = [
             'scale=1080:1920:force_original_aspect_ratio=decrease',
-            'pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black',
-            `eq=brightness=${brightness}:contrast=${contrast}:saturation=${saturation}:gamma=${gamma}`,
-            ...randomEffects
+            'pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black'
           ].join(',');
 
           const ffmpegArgs = [
@@ -348,29 +333,12 @@ export async function POST(request: NextRequest) {
 
           // Ajouter le hook sur la vidéo avec FFmpeg (overlay)
           await new Promise((resolve, reject) => {
-            // Générer des valeurs aléatoires subtiles pour l'originalité
-            const brightness = (Math.random() * 0.3 - 0.15).toFixed(3); // -0.15 à +0.15
-            const contrast = (1 + Math.random() * 0.4 - 0.2).toFixed(3); // 0.8 à 1.2
-            const saturation = (1 + Math.random() * 0.3 - 0.15).toFixed(3); // 0.85 à 1.15
-            const gamma = (1 + Math.random() * 0.2 - 0.1).toFixed(3); // 0.9 à 1.1
-            const speedFactor = (1 + Math.random() * 0.1 - 0.05).toFixed(3); // 0.95 à 1.05
+            console.log(`[Add Hook] Processing video`);
 
-            // Filtres optionnels aléatoires (30% de chance)
-            const randomEffects = [];
-            if (Math.random() < 0.3) {
-              const sharpening = (Math.random() * 0.5 + 0.5).toFixed(3); // 0.5 à 1.0
-              randomEffects.push(`unsharp=5:5:${sharpening}:5:5:0.0`);
-            }
-
-            console.log(`[Add Hook] Applying filters to video - brightness:${brightness}, contrast:${contrast}, saturation:${saturation}, gamma:${gamma}, speed:${speedFactor}, effects:${randomEffects.join(',')}`);
-
-            // Build filter chain: scale video, apply effects, then overlay hook
+            // Build filter chain: scale video then overlay hook
             const videoFilters = [
               'scale=1080:1920:force_original_aspect_ratio=decrease',
-              'pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black',
-              `eq=brightness=${brightness}:contrast=${contrast}:saturation=${saturation}:gamma=${gamma}`,
-              `setpts=${speedFactor}*PTS`,
-              ...randomEffects
+              'pad=1080:1920:(ow-iw)/2:(oh-ih)/2:black'
             ].join(',');
 
             const ffmpegArgs = [

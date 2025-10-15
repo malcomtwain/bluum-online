@@ -129,9 +129,6 @@ function getAuthenticProfile(seed: number): {
     // 📱 iPhone 17 Pro pattern
     const fpsJitter = 29.97 + (Math.abs(Math.sin(seed * 0.002) * 1000) % 40 - 20) / 1000; // 29.95-29.99
     const videoBitrate = 8000 + Math.floor(Math.abs(Math.sin(seed * 0.003) * 1000) % 1500); // 8.0-9.5M
-    const brightness = 1 + (Math.abs(Math.sin(seed * 0.004) * 1000) % 4 - 2) / 100; // ±2%
-    const contrast = 1 + (Math.abs(Math.sin(seed * 0.005) * 1000) % 6 - 3) / 100; // ±3%
-
     config = {
       profileType: 'iPhone',
       codec: 'libx264',
@@ -141,7 +138,7 @@ function getAuthenticProfile(seed: number): {
       audioBitrate: '160k',
       audioSampleRate: 44100,
       audioChannels: 2,
-      colorAdjustment: { brightness, contrast },
+      colorAdjustment: { brightness: 1.0, contrast: 1.0 },
       metadata: {
         'metadata:g:0': 'com.apple.quicktime.make=Apple',
         'metadata:g:1': 'com.apple.quicktime.model=iPhone17,3'
@@ -151,8 +148,6 @@ function getAuthenticProfile(seed: number): {
     // 🎬 CapCut Android pattern
     const videoBitrate = 6000 + Math.floor(Math.abs(Math.sin(seed * 0.003) * 1000) % 2000); // 6.0-8.0M
     const audioSampleRate = Math.abs(Math.sin(seed * 0.006)) > 0.8 ? 44100 : 48000; // Occasionnellement 44.1k
-    const brightness = 1 + (Math.abs(Math.sin(seed * 0.004) * 1000) % 2 - 1) / 100; // ±1%
-    const contrast = 1 + (Math.abs(Math.sin(seed * 0.005) * 1000) % 2 - 1) / 100; // ±1%
 
     config = {
       profileType: 'CapCut',
@@ -163,7 +158,7 @@ function getAuthenticProfile(seed: number): {
       audioBitrate: '128k',
       audioSampleRate,
       audioChannels: 2,
-      colorAdjustment: { brightness, contrast },
+      colorAdjustment: { brightness: 1.0, contrast: 1.0 },
       metadata: {
         'metadata:g:0': 'com.bytedance.capcut'
       }
