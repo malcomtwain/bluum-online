@@ -2731,8 +2731,9 @@ export default function CreatePage() {
               ...collectionVideos.map(vid => ({ ...vid, type: 'video' }))
             ];
 
-            // Calculer le nombre d'images nécessaires selon la durée de la musique
-            const musicDuration = selectedSong!.duration || 30; // Durée en secondes
+            // Calculer le nombre d'images nécessaires selon la durée cible définie par l'utilisateur
+            // Utiliser la moyenne entre min et max pour déterminer la durée cible
+            const targetDuration = (imageTimingMin + imageTimingMax) / 2000; // Convertir ms en secondes
 
             // Pour "for-a-living":
             // - 8 premières images avec timestamps spécifiques (total ~4.1s)
@@ -2740,15 +2741,15 @@ export default function CreatePage() {
             let neededMediaCount: number;
             if (autoCutTemplate === 'for-a-living') {
               const firstCutsDuration = 4.1; // Durée des 8 premières images
-              const remainingDuration = Math.max(0, musicDuration - firstCutsDuration);
+              const remainingDuration = Math.max(0, targetDuration - firstCutsDuration);
               const remainingImages = Math.ceil(remainingDuration / 0.35);
               neededMediaCount = Math.min(8 + remainingImages, allMedia.length);
             } else {
               // Pour les autres templates, estimer ~2s par média en moyenne
-              neededMediaCount = Math.min(Math.ceil(musicDuration / 2), allMedia.length);
+              neededMediaCount = Math.min(Math.ceil(targetDuration / 2), allMedia.length);
             }
 
-            console.log(`[AutoCut] Music duration: ${musicDuration}s, selecting ${neededMediaCount}/${allMedia.length} media items`);
+            console.log(`[AutoCut] Target duration: ${targetDuration}s (${imageTimingMin/1000}s-${imageTimingMax/1000}s), selecting ${neededMediaCount}/${allMedia.length} media items`);
 
             // Sélectionner aléatoirement le nombre nécessaire de médias
             const shuffled = [...allMedia].sort(() => Math.random() - 0.5);
