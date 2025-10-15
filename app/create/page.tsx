@@ -2821,7 +2821,7 @@ export default function CreatePage() {
                 clipDuration: 1.5 // TikTok Creative uses automatic intelligent duration
               };
             } else {
-              // Default AutoCut mode (includes one-shoot)
+              // Default AutoCut mode (includes one-shoot and for-a-living)
               data = {
                 images: imagesData.map(url => ({ url, type: 'image' })),
                 videos: videosData,
@@ -2841,7 +2841,8 @@ export default function CreatePage() {
                 // Nouveaux paramètres de timing et variation
                 imageTiming: videoParams.imageTiming / 1000, // Convertir ms en secondes pour l'API
                 imageCount: videoParams.imageCount,
-                maxVideoDuration: maxVideoDuration
+                maxVideoDuration: maxVideoDuration,
+                template: autoCutTemplate // Ajouter le template pour que l'API sache quel template utiliser
               };
             }
           } else if (isCreedStreamerMode) {
@@ -3122,7 +3123,7 @@ export default function CreatePage() {
                     : autoCutTemplate === 'one-shoot'
                       ? '/api/create-video/one-shoot'
                       : autoCutTemplate === 'for-a-living'
-                        ? '/api/create-video/for-a-living'
+                        ? '/api/create-video/auto-cut'
                         : autoCutTemplate === 'auto-lyrics'
                           ? '/api/create-video/2000'
                           : '/api/create-video/twain-ya-gamila') // Default AutoCut

@@ -49,21 +49,59 @@ type PartInput = { url: string; type: 'image' | 'video' };
 
 type RequestBody = {
   hook?: { text?: string; style?: number; position?: 'top' | 'middle' | 'bottom'; offset?: number };
-  parts: PartInput[]; // expected length: 5
+  parts: PartInput[]; // expected length: 5 (or more for for-a-living template)
   durations?: {
     final?: { min: number; max: number };
     perPart?: Array<{ min: number; max: number }>; // optional
   };
   song: { url: string };
+  template?: string; // Template name (e.g., 'for-a-living')
 };
 
 export async function POST(req: Request) {
   try {
-    const data: RequestBody = await req.json();
+    const data: any = await req.json();
 
-    const parts = (data.parts || []).slice(0, 5);
-    if (parts.length !== 5) {
-      return NextResponse.json({ success: false, error: 'AutoCut requires 5 parts' }, { status: 400 });
+    const template = data.template || 'default';
+
+    // For-a-living template timestamps (in seconds)
+    const forALivingCuts = [
+      0.70,  // Image 1 -> 2
+      1.20,  // Image 2 -> 3
+      1.80,  // Image 3 -> 4
+      2.40,  // Image 4 -> 5
+      2.70,  // Image 5 -> 6
+      3.00,  // Image 6 -> 7
+      3.75,  // Image 7 -> 8
+      4.10   // Image 8 -> 9, puis tous les 0.35s après
+    ];
+
+    // Convertir le format du frontend (images + videos) en parts si nécessaire
+    let parts: PartInput[] = data.parts || [];
+    if (!parts.length && (data.images || data.videos)) {
+      const images = (data.images || []).map((img: any) => ({
+        url: typeof img === 'string' ? img : img.url,
+        type: 'image' as const
+      }));
+      const videos = (data.videos || []).map((vid: any) => ({
+        url: typeof vid === 'string' ? vid : vid.url,
+        type: 'video' as const
+      }));
+      parts = [...images, ...videos];
+    }
+
+    // Validation selon le template
+    if (template === 'for-a-living') {
+      // For-a-living nécessite au moins 8 parties
+      if (parts.length < 8) {
+        return NextResponse.json({ success: false, error: 'For-a-living template requires at least 8 parts' }, { status: 400 });
+      }
+    } else {
+      // Default autocut nécessite exactement 5 parties
+      parts = parts.slice(0, 5);
+      if (parts.length !== 5) {
+        return NextResponse.json({ success: false, error: 'AutoCut requires 5 parts' }, { status: 400 });
+      }
     }
 
     const tempDir = join(process.cwd(), 'temp');
@@ -120,7 +158,7 @@ export async function POST(req: Request) {
       return Math.round((Math.random() * (max - min) + min) * 10) / 10;
     }
 
-    // Recommended per-part ranges as fallback
+    // Recommended per-part ranges as fallback (for default autocut)
     const defaultRanges = [
       { min: 1, max: 3 }, // Face cam
       { min: 2, max: 4 }, // Pre match
@@ -130,13 +168,43 @@ export async function POST(req: Request) {
     ];
     const perPartRanges = data.durations?.perPart && data.durations.perPart.length === 5 ? data.durations.perPart : defaultRanges;
 
+    // Get song path first to know total duration
+    const songUrl = typeof data.song === 'string' ? data.song : (data.song?.url || data.music?.url);
+    if (!songUrl) {
+      return NextResponse.json({ success: false, error: 'Missing song URL' }, { status: 400 });
+    }
+    const songPath = await saveUrlToFile(songUrl, 'song');
+
+    // Calculate durations for for-a-living template
+    let partDurations: number[] = [];
+    if (template === 'for-a-living') {
+      // Build durations array based on timestamps
+      partDurations = [0.70]; // First image duration (0 to 0.70s)
+      for (let i = 0; i < forALivingCuts.length - 1; i++) {
+        partDurations.push(forALivingCuts[i + 1] - forALivingCuts[i]);
+      }
+      // For images after index 8, use 0.35s intervals
+      const remainingImages = parts.length - forALivingCuts.length - 1;
+      for (let i = 0; i < remainingImages; i++) {
+        partDurations.push(0.35);
+      }
+    }
+
     // Save inputs and build scaled segments
     const scaledPaths: string[] = [];
     for (let i = 0; i < parts.length; i++) {
       const p = parts[i];
       const src = await saveUrlToFile(p.url, `auto_part${i + 1}`);
       const isImg = isImageFile(src);
-      const partDuration = isImg || p.type === 'image' ? pickRandom(perPartRanges[i].min, perPartRanges[i].max) : undefined;
+
+      // Determine duration based on template
+      let partDuration: number | undefined;
+      if (template === 'for-a-living') {
+        partDuration = partDurations[i];
+      } else {
+        partDuration = isImg || p.type === 'image' ? pickRandom(perPartRanges[i].min, perPartRanges[i].max) : undefined;
+      }
+
       const scaled = join(tempDir, `ac_part${i + 1}_scaled_${timestamp}.mp4`);
       const targetWidth = 1080;
       const targetHeight = 1920;
@@ -168,12 +236,9 @@ export async function POST(req: Request) {
       scaledPaths.push(scaled);
     }
 
-    // Concat all 5 parts
+    // Concat all parts
     const inputs = scaledPaths.map((p) => `-i "${p}"`).join(' ');
     const n = scaledPaths.length;
-
-    // Handle song audio
-    const songPath = await saveUrlToFile(data.song.url, 'song');
 
     // Générer des filtres globaux finaux pour l'originalité
     const finalBrightness = (Math.random() * 0.2 - 0.1).toFixed(3); // -0.1 à +0.1 (plus subtil)
@@ -190,16 +255,17 @@ export async function POST(req: Request) {
     await execPromise(finalCmd);
 
     // Optional hook overlay (reuse simple overlay like in base route)
-    if (data.hook?.text) {
+    const hookText = data.hook?.text || (data.hooks && data.hooks.length > 0 ? data.hooks[0] : null);
+    if (hookText) {
       const puppeteer = eval('require')('puppeteer');
       const browser = await puppeteer.launch({ headless: true });
       const page = await browser.newPage();
       await page.setViewport({ width: 1080, height: 1920, deviceScaleFactor: 1 });
 
       const hookImagePath = join(tempDir, `hook_${timestamp}.png`);
-      const position = data.hook.position || 'top';
-      const offset = data.hook.offset || 0;
-      const style = data.hook.style || 2;
+      const position = data.hook?.position || data.position || 'top';
+      const offset = data.hook?.offset || data.offset || 0;
+      const style = data.hook?.style || data.style || 2;
 
       const normalStyle = `font-size: 60px; line-height: 1.2; display: inline-block; width: 100%; max-width: 80%; margin: 0 auto; text-align: center; color: #fff; font-weight: normal; text-shadow: -2.8px -2.8px 0 #000, 2.8px -2.8px 0 #000, -2.8px 2.8px 0 #000, 2.8px 2.8px 0 #000; padding: 0.8rem 1.5rem 1rem 1.5rem; background: transparent; filter: none;`;
       const backgroundWhiteStyle = `font-size: 65px; line-height: 1.2; display: inline; box-decoration-break: clone; background: #fff; padding: 0.1rem 1.5rem 0.75rem 1.5rem; filter: url('#goo'); max-width: 80%; text-align: center; color: #000; font-weight: normal;`;
@@ -210,7 +276,7 @@ export async function POST(req: Request) {
         @font-face { font-family: 'TikTok Display Medium'; src: url('${join(process.cwd(), 'public/fonts/TikTokDisplayMedium.otf')}'); }
         body { margin:0; width:1080px; height:1920px; display:flex; align-items:${position === 'top' ? 'flex-start' : position === 'middle' ? 'center' : 'flex-end'}; justify-content:center; padding:${position === 'top' ? '96px' : position === 'bottom' ? '480px' : '0px'} 0; font-family:'TikTok Display Medium', sans-serif; }
         .goo { ${style === 1 ? normalStyle : style === 2 ? backgroundWhiteStyle : backgroundBlackStyle} transform: translateY(${offset * 8}px); }
-        </style></head><body><h1 style="width:85%;text-align:center;margin:0;padding:0"><div class="goo">${data.hook.text}</div></h1>
+        </style></head><body><h1 style="width:85%;text-align:center;margin:0;padding:0"><div class="goo">${hookText}</div></h1>
         <svg style="visibility:hidden;position:absolute" width="0" height="0" xmlns="http://www.w3.org/2000/svg" version="1.1"><defs><filter id="goo"><feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur"/><feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -9" result="goo"/><feComposite in="SourceGraphic" in2="goo" operator="atop"/></filter></defs></svg>
         </body></html>`;
 
